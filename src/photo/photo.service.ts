@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { AxiosResponse } from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class PhotoService {
@@ -13,14 +14,17 @@ export class PhotoService {
     destinationFolder: string,
   ): Promise<void> {
     try {
-      const response: AxiosResponse<Buffer> = await this.httpService
-        .get(imageUrl, { responseType: 'arraybuffer' })
-        .toPromise();
+      const response: AxiosResponse<Buffer> = await firstValueFrom(
+        this.httpService.get(imageUrl, { responseType: 'arraybuffer' }),
+      );
 
       const fileExtension = path.extname(imageUrl);
       const fileName = `${path.basename(imageUrl, fileExtension)}${fileExtension}`;
       const filePath = path.join(destinationFolder, fileName);
 
+      // TODO:: Check if file already exists and skip if if it does.
+
+      // TODO:: Use fs.promises.writeFile() instead of fs.writeFileSync()
       fs.writeFileSync(filePath, Buffer.from(response.data));
       console.log(`Downloaded photo: ${fileName}`);
     } catch (error) {
