@@ -1,30 +1,22 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
-</p>
+# Real Estate Houses API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Demo app for how to process an unreliable API and download images concurrently. See [Background](#background) and [Requirements](#requirements) below for more info.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Solution Design Choices
 
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- Strongly Typed: [NestJS](https://nestjs.com) as the backend framework, for it's focus on strong typing, as it's built on Typescript itself and encourages the use of type safety.
+  - NestJS allows us to start our solution off simple but to "structure our code as if you were planning to evolve it to production quality".
+- [HttpModule](https://docs.nestjs.com/techniques/http-module) for making API requests - a wrapper around [Axios](https://axios-http.com/).
+  - HttpModule converts responses into Observables, the main concept of [RxJS](https://rxjs.dev/).
+- [Observables](https://rxjs.dev/guide/observable), are a way to represent async data streams, as an alternative to Promises.
+  - The `pipe()` function allows you to chain multiple operators together, providing a clean and expressive way to manipulate API responses. 
+  - It creates a pipeline for transforming the data through operators like `map()`, `filter()`, etc.
+- Error Handling: Observables have built-in error-handling mechanisms. We use operators like `catchError` to gracefully handle errors that may occur during API calls.
+- Retry: Leverage built-in `retry()` operator for Observables, which will retry a failed HTTP request, which we can leverage because the API is unstable and sometimes returns non-200 responses.
+- Concurrency: `Promise.all()` is used to download all images in parallel (you will notice image downloads complete in non-sequential order in console logs).
+  - Shows how promises and observables can be used together.
+- We download the first 10 pages are required, but once we get to a successful page of results with zero houses remaining, we stop the download process.
+- Unit Tests: See `.spec.ts` files for unit tests.
 
 ## Installation
 
@@ -40,10 +32,11 @@ $ pnpm run start
 
 # watch mode
 $ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
 ```
+
+Now navigate to http://localhost:3000/ to run the app to process the houses api and download the first 10 pages of images (see console for progress logs).
+
+To follow the code see `src/main.ts` which loads the main controller: `src/houses.controller.ts`.
 
 ## Test
 
@@ -51,23 +44,46 @@ $ pnpm run start:prod
 # unit tests
 $ pnpm run test
 
-# e2e tests
-$ pnpm run test:e2e
-
 # test coverage
 $ pnpm run test:cov
 ```
+------
 
-## Support
+## Background
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+We have a simple paginated API that returns a list of houses along with some metadata. Your challenge is to write a script that meets the requirements.
 
-## Stay in touch
+**Note:** this is a unstable API! That means that it will likely fail with a non-200 response code. Your code *must* handle these errors correctly so that all photos are downloaded.
 
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## API Endpoint
 
-## License
+You can request the data using the following endpoint:
 
-Nest is [MIT licensed](LICENSE).
+```
+http://app-homevision-staging.herokuapp.com/api_project/houses
+```
+
+This route by itself will respond with a default list of houses (or a server error!). You can use the following URL parameters:
+
+- `page`: the page number you want to retrieve (default is 1)
+- `per_page`: the number of houses per page (default is 10)
+
+## Requirements
+
+- Requests the first 10 pages of results from the API
+- Parses the JSON returned by the API
+- Downloads the photo for each house and saves it in a file with the name formatted as:
+
+  `[id]-[address].[ext]`
+
+- Downloading photos is slow so please optimize them and make use of concurrency
+
+### Bonus Points
+
+- Write tests
+- Write your code in in a strongly typed language
+- Structure your code as if you were planning to evolve it to production quality
+
+### Managing your time
+
+Include “TODO:” comments if there are things that you might want to address but that would take too much time for this exercise. That will help us understand items that you are considering but aren’t putting into this implementation.
