@@ -6,7 +6,7 @@ import { PhotoService } from './photo/photo.service';
 
 @Module({
   imports: [
-    // TODO:: Move to static values to configService or HttpConfigService class.
+    // TODO:: Move static values to configService or HttpConfigService class.
     HttpModule.register({
       timeout: 5000,
       maxRedirects: 5,

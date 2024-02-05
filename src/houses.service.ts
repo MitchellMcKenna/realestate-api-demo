@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { catchError, map, Observable, retry } from 'rxjs';
 import { AxiosResponse } from 'axios';
@@ -12,7 +12,6 @@ interface ApiResponse {
 
 @Injectable()
 export class HousesService {
-  private readonly logger = new Logger(HousesService.name);
   constructor(private readonly httpService: HttpService) {}
 
   downloadPage(page: number = 1, perPage: number = 100): Observable<House[]> {

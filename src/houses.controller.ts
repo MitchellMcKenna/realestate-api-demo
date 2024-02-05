@@ -1,22 +1,12 @@
-import { Controller, Get, Logger } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { HousesService } from './houses.service';
-import {
-  catchError,
-  concatMap,
-  finalize,
-  from,
-  map,
-  mergeMap,
-  Observable,
-  of,
-} from 'rxjs';
+import { catchError, finalize, from, mergeMap, Observable, of } from 'rxjs';
 import { PhotoService } from './photo/photo.service';
 import { House } from './house.schema';
 
 @Controller()
 export class HousesController {
-  // TODO:: Logger not needed any more?
-  private readonly logger = new Logger(HousesService.name);
+  // TODO:: Use Nest's Logger instead of console.log.
 
   private maxPages: number = 10;
 
@@ -35,7 +25,7 @@ export class HousesController {
         return of(`Failed to download pages: ${error}`);
       }),
       finalize(() => {
-        console.log('Page download process completed.');
+        console.log('House photo download process completed.');
       }),
     );
   }
@@ -52,16 +42,12 @@ export class HousesController {
           );
         }
 
-        return from(
-          this.photoService.downloadPhotos(
-            houses.map((house: House) => house.photoURL),
-            './photos',
-          ),
-        ).pipe(
-          map(() => `Downloaded photos for page ${currentPage}.`),
+        return from(this.photoService.downloadPhotos(houses, './photos')).pipe(
           mergeMap(() => {
             if (currentPage >= maxPages) {
-              return of(`Reached maxPages limit of ${maxPages}.`);
+              return of(
+                `Download complete. Reached max page limit: ${maxPages}.`,
+              );
             } else {
               return this.fetchPagesRecursively(currentPage + 1, maxPages);
             }
