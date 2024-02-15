@@ -3,11 +3,11 @@ import { HttpService } from '@nestjs/axios';
 import { PhotoService } from './photo.service';
 import { of } from 'rxjs';
 import { AxiosResponse } from 'axios';
+import * as fsPromises from 'fs/promises';
 import * as fs from 'fs';
 
 // Mocking AxiosResponse and HttpService
 jest.mock('axios');
-jest.mock('fs');
 
 const mockedAxiosResponse: AxiosResponse<Buffer> = {
   data: Buffer.from('Mocked image data'),
@@ -57,6 +57,10 @@ describe('PhotoService', () => {
         photoURL: 'http://example.com/mock.jpg',
       };
 
+      // Mock fsPromises.writeFile
+      const writeFileMock = jest.spyOn(fsPromises, 'writeFile');
+      writeFileMock.mockResolvedValueOnce();
+
       await service.downloadPhoto(house, './mock-destination');
 
       // Assert that HttpService.get was called with the correct URL
@@ -64,10 +68,11 @@ describe('PhotoService', () => {
         responseType: 'arraybuffer',
       });
 
-      // Assert that fs.writeFileSync was called with the correct parameters
       const expectedFileName = '123-mocked-address.jpg';
       const expectedFilePath = 'mock-destination/' + expectedFileName;
-      expect(fs.writeFileSync).toHaveBeenCalledWith(
+
+      // Assert that fs.writeFile was called with the correct parameters
+      expect(writeFileMock).toHaveBeenCalledWith(
         expectedFilePath,
         expect.any(Buffer),
       );
@@ -94,7 +99,7 @@ describe('PhotoService', () => {
 
       // Assert that the error message is logged
       expect(console.error).toHaveBeenCalledWith(
-        'Failed to download photo from http://example.com/mock.jpg:',
+        'Failed to write file: mock-destination/123-mocked-address.jpg',
         'The first argument must be of type string or an instance of Buffer, ArrayBuffer, or Array or an Array-like Object. Received undefined',
       );
     });

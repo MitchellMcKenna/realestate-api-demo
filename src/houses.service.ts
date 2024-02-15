@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { catchError, map, Observable, retry } from 'rxjs';
+import { catchError, interval, map, Observable, retry } from 'rxjs';
 import { AxiosResponse } from 'axios';
 import { HouseSchema, House } from './house.schema';
 import { ZodError } from 'zod';
+import { ConfigService } from '@nestjs/config';
 
 interface ApiResponse {
   houses: House[];
@@ -12,14 +13,26 @@ interface ApiResponse {
 
 @Injectable()
 export class HousesService {
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {}
 
   downloadPage(page: number = 1, perPage: number = 10): Observable<House[]> {
-    // TODO:: Pull apiUrl out to a config file.
-    const apiUrl: string = `https://app-homevision-staging.herokuapp.com/api_project/houses?page=${page}&per_page=${perPage}`;
+    const apiUrl: string =
+      this.configService.get('services.houses_api.base_url') +
+      `?page=${page}&per_page=${perPage}`;
 
     return this.httpService.get(apiUrl).pipe(
-      retry({ count: 5, delay: 100 }), // TODO:: Improve with exponential backoff.
+      retry({
+        count: 5,
+        delay: (error, retryAttempt) => {
+          // Implements exponential backoff
+          const retryDelay: number = Math.pow(2, retryAttempt) * 100;
+          console.log('retrying in ' + retryDelay + 'ms');
+          return interval(retryDelay);
+        },
+      }),
       map((response: AxiosResponse<ApiResponse>) => {
         return response.data.houses.map((house: House) => {
           try {

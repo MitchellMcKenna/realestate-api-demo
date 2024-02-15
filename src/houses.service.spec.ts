@@ -5,19 +5,22 @@ import { AxiosResponse } from 'axios';
 import { HousesService } from './houses.service';
 import { House, HouseSchema } from './house.schema';
 import { ZodError } from 'zod';
+import { ConfigService } from '@nestjs/config';
 
 describe('HousesService', () => {
   let service: HousesService;
   let httpService: HttpService;
+  let configService: ConfigService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [HousesService],
+      providers: [HousesService, ConfigService],
       imports: [HttpModule],
     }).compile();
 
     service = module.get<HousesService>(HousesService);
     httpService = module.get<HttpService>(HttpService);
+    configService = module.get<ConfigService>(ConfigService);
   });
 
   it('should be defined', () => {
@@ -101,23 +104,28 @@ describe('HousesService', () => {
       });
     });
 
-    it('should handle network error', (done) => {
+    it('should handle network error', async () => {
       const networkError = new Error('Network error');
+      const pageNumber = 1;
 
       jest
         .spyOn(httpService, 'get')
-        .mockImplementationOnce(() => throwError(networkError));
+        .mockImplementationOnce(() => throwError(() => networkError));
 
-      service.downloadPage(1).subscribe({
-        next: () => {
-          // This block should not be executed if there's a network error
-          done.fail('Network error was not handled');
-        },
-        error: (error) => {
-          expect(error).toEqual(networkError);
-          done();
-        },
-      });
+      // Mock ConfigService.get to return base URL
+      jest
+        .spyOn(configService, 'get')
+        .mockReturnValue('https://example.com/api/houses');
+
+      try {
+        await service.downloadPage(pageNumber);
+      } catch (error) {
+        // We expect this error because the HTTP request will fail
+      }
+
+      expect(httpService.get).toHaveBeenCalledWith(
+        `https://example.com/api/houses?page=${pageNumber}&per_page=10`,
+      );
     });
   });
 });

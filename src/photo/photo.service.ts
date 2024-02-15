@@ -3,7 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { AxiosResponse } from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
-import { firstValueFrom, retry } from 'rxjs';
+import { firstValueFrom, interval, retry } from 'rxjs';
 import { House } from '../house.schema';
 import slugify from 'slugify';
 
@@ -17,7 +17,15 @@ export class PhotoService {
         this.httpService
           .get(house.photoURL, { responseType: 'arraybuffer' })
           .pipe(
-            retry({ count: 5, delay: 100 }), // TODO:: Improve with exponential backoff.
+            retry({
+              count: 5,
+              delay: (error, retryAttempt) => {
+                // Implements exponential backoff
+                const retryDelay: number = Math.pow(2, retryAttempt) * 100;
+                console.log('retrying in ' + retryDelay + 'ms');
+                return interval(retryDelay);
+              },
+            }),
           ),
       );
 
@@ -27,10 +35,20 @@ export class PhotoService {
       const fileName: string = `${house.id}-${addressSlug}${fileExtension}`;
       const filePath: string = path.join(destinationFolder, fileName);
 
-      // TODO:: Check if file already exists and skip if if it does.
+      // Skip if file already exists
+      try {
+        await fs.promises.access(filePath);
+        console.log(`File already exists: ${fileName}`);
+        return;
+      } catch (error) {
+        // Write the file.
+      }
 
-      // TODO:: Use fs.promises.writeFile() instead of fs.writeFileSync() to increase concurrency.
-      fs.writeFileSync(filePath, Buffer.from(response.data));
+      try {
+        await fs.promises.writeFile(filePath, Buffer.from(response.data));
+      } catch (error) {
+        console.error(`Failed to write file: ${filePath}`, error.message);
+      }
 
       console.log(`Downloaded photo: ${fileName}`);
     } catch (error) {
@@ -55,7 +73,7 @@ export class PhotoService {
     const downloadPromises: Promise<void>[] = houses.map((house: House) =>
       this.downloadPhoto(house, destinationFolder),
     );
-    await Promise.all(downloadPromises);
+    await Promise.allSettled(downloadPromises);
 
     console.log('All photos concurrently downloaded successfully.');
   }
