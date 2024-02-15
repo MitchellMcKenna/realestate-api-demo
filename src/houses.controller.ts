@@ -6,8 +6,6 @@ import { House } from './house.schema';
 
 @Controller()
 export class HousesController {
-  // TODO:: Use Nest's Logger instead of console.log.
-
   private maxPages: number = 10;
 
   constructor(

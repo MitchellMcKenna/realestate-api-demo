@@ -14,7 +14,7 @@ interface ApiResponse {
 export class HousesService {
   constructor(private readonly httpService: HttpService) {}
 
-  downloadPage(page: number = 1, perPage: number = 100): Observable<House[]> {
+  downloadPage(page: number = 1, perPage: number = 10): Observable<House[]> {
     // TODO:: Pull apiUrl out to a config file.
     const apiUrl: string = `https://app-homevision-staging.herokuapp.com/api_project/houses?page=${page}&per_page=${perPage}`;
 
