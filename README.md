@@ -15,7 +15,8 @@ Demo app for how to process an unreliable API and download images concurrently. 
 - Retry: Leverage built-in `retry()` operator for Observables, which will retry a failed HTTP request, which we can leverage because the API is unstable and sometimes returns non-200 responses.
 - Concurrency: `Promise.all()` is used to download all images in parallel (you will notice image downloads complete in non-sequential order in console logs).
   - Shows how promises and observables can be used together.
-- We download the first 10 pages are required, but once we get to a successful page of results with zero houses remaining, we stop the download process.
+- JSONSchema Validation: We use [Zod](https://github.com/colinhacks/zod) to ensure all houses we get back from the API contain  the data we expect them to (see `/src/house.schema.ts`.
+- We download the first 10 pages as required, but once we get to a successful page of results with zero houses remaining, we stop the download process.
 - Unit Tests: See `.spec.ts` files for unit tests.
 
 ## Installation
